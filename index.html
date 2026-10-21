@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Route Planner</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.min.css" />
+    
+    <style>
+        /* ===== VARIABLES ===== */
+        :root {
+            --bg-primary: #f4f7fb;
+            --bg-app: white;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --bg-controls: #f1f5f9;
+            --bg-card: #f8fafc;
+            --border-color: #e2e8f0;
+            --shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            --input-bg: white;
+            --input-border: #d1d9e6;
+            --btn-primary: #2563eb;
+            --btn-primary-hover: #1d4ed8;
+            --btn-secondary: #e2e8f0;
+            --btn-secondary-hover: #cbd5e1;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+            --badge-bg: #dbeafe;
+            --badge-text: #1e4f8a;
+            --map-bg: #e8edf3;
+            --route-color: #2563eb;
+        }
+
+        /* ===== DARK MODE ===== */
+        body.dark-mode {
+            --bg-primary: #0f172a;
+            --bg-app: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --bg-controls: #334155;
+            --bg-card: #1e293b;
+            --border-color: #475569;
+            --shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            --input-bg: #334155;
+            --input-border: #475569;
+            --btn-secondary: #475569;
+            --btn-secondary-hover: #64748b;
+            --error-bg: #7f1d1d;
+            --error-text: #fca5a5;
+            --badge-bg: #1e3a5f;
+            --badge-text: #93c5fd;
+            --map-bg: #1e293b;
+            --route-color: #60a5fa;
+        }
+
+        /* ===== RESET & BASE ===== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        body {
+            background: var(--bg-primary);
+            padding: 2rem 1.5rem;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app {
+            max-width: 1200px;
+            width: 100%;
+            background: var(--bg-app);
+            border-radius: 2rem;
+            box-shadow: var(--shadow);
+            padding: 2rem 2rem 2.5rem;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        header h1 {
+            font-weight: 600;
+            font-size: 1.9rem;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            font-size: 0.75rem;
+            border-radius: 40px;
+            padding: 0.3rem 1rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0.2rem 0 1.8rem 0;
+            background: var(--bg-controls);
+            border-radius: 40px;
+            padding: 0.4rem 1.2rem;
+            display: inline-block;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn-icon {
+            background: var(--bg-controls);
+            border: 1px solid var(--border-color);
+            border-radius: 40px;
+            padding: 0.4rem 1rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .btn-icon:hover {
+            background: var(--btn-secondary-hover);
+            transform: scale(0.97);
+        }
+
+        /* ===== ERROR BANNER ===== */
+        .error-banner {
+            background: var(--error-bg);
+            color: var(--error-text);
+            border-radius: 60px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            display: none;
+            border-left: 5px solid #dc2626;
+        }
+        .error-banner.show {
+            display: block;
+        }
+
+        /* ===== CONTROLS ===== */
+        .controls {
+            background: var(--bg-controls);
+            border-radius: 1.5rem;
+            padding: 1.5rem 1.8rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 1rem 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1 0 140px;
+        }
+
+        .field-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+        }
+
+        .field-group input,
+        .field-group select {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 60px;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+            transition: 0.15s;
+            color: var(--text-primary);
+        }
+        .field-group input:focus,
+        .field-group select:focus {
+            border-color: var(--btn-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        .field-group select option {
+            background: var(--bg-app);
+            color: var(--text-primary);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            border: none;
+            font-weight: 600;
+            padding: 0.6rem 1.8rem;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--btn-primary);
+            color: white;
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+        }
+        .btn-primary:hover {
+            background: var(--btn-primary-hover);
+            transform: scale(0.97);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--btn-secondary);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+        .btn-secondary:hover {
+            background: var(--btn-secondary-hover);
+            transform: scale(0.97);
+        }
+
+        .btn-location {
+            background: var(--btn-secondary);
+            color: var(--text-primary);
+            padding: 0.6rem 1.2rem;
+        }
+        .btn-location:hover {
+            background: var(--btn-secondary-hover);
+            transform: scale(0.97);
+        }
+
+        /* ===== MAP ===== */
+        .map-container {
+            border-radius: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+            height: 420px;
+            position: relative;
+            background: var(--map-bg);
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* ===== RESULTS ===== */
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 700px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .actions {
+                justify-content: stretch;
+            }
+            .actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+            .header-controls {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 1.5rem;
+            padding: 1.2rem 1.5rem 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .card h3 {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            margin: 0 0 0.8rem 0;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+        .info-line:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+        .info-value {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .info-note {
+            margin-top: 0.6rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        /* ===== TURN-BY-TURN ===== */
+        .turn-list {
+            margin-top: 0.8rem;
+            max-height: 150px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .turn-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .turn-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+        .turn-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.4rem 0.2rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+        .turn-item:last-child {
+            border-bottom: none;
+        }
+        .turn-icon {
+            font-size: 1.2rem;
+            width: 28px;
+            text-align: center;
+        }
+        .turn-distance {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* ===== WEATHER ICON ===== */
+        .weather-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .weather-icon-large {
+            font-size: 2.8rem;
+            line-height: 1;
+        }
+        .weather-details {
+            flex: 1;
+        }
+        .weather-temp {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .weather-condition {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* ===== LOADING ===== */
+        .loading-map {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .loading-map .spinner {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+        }
+
+        .travel-mode-badge {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: var(--badge-bg);
+            color: var(--badge-text);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app">
+        <!-- Header -->
+        <header>
+            <h1>🗺️ Travel Route Planner</h1>
+            <div class="header-controls">
+                <button class="btn-icon" id="darkModeBtn">🌙 Dark</button>
+                <span class="badge">API Integration</span>
+            </div>
+        </header>
+        <p class="subtitle">📍 Plan your trip · route + weather forecast</p>
+
+        <!-- Error banner -->
+        <div id="errorBanner" class="error-banner">
+            ⚠️ <span id="errorMessage">Error</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="field-group">
+                <label>📍 Origin</label>
+                <input type="text" id="originInput" placeholder="e.g. Manila" value="Manila, Philippines" />
+            </div>
+            <div class="field-group">
+                <label>🏁 Destination</label>
+                <input type="text" id="destInput" placeholder="e.g. Baguio" value="Baguio, Philippines" />
+            </div>
+            <div class="field-group">
+                <label>📅 Visit date</label>
+                <input type="date" id="dateInput" />
+            </div>
+            <div class="field-group" style="flex: 0 0 130px;">
+                <label>🚗 Mode</label>
+                <select id="travelMode">
+                    <option value="car">🚗 Driving</option>
+                    <option value="walk">🚶 Walking</option>
+                </select>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" id="findRouteBtn">🚀 Find Route</button>
+                <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+                <button class="btn btn-location" id="currentLocationBtn" title="Use my current location">📍</button>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map">
+                <div class="loading-map">
+                    <div class="spinner">🗺️</div>
+                    <div>Loading map...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-grid">
+            <div class="card">
+                <h3>🛣️ Route & Travel</h3>
+                <div id="routeInfo">
+                    <div class="info-line">
+                        <span class="info-label">Distance</span>
+                        <span class="info-value" id="distanceVal">—</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Estimated time</span>
+                        <span class="info-value" id="timeVal">—</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Travel mode</span>
+                        <span class="info-value" id="modeDisplay">🚗 Driving</span>
+                    </div>
+                    <div class="info-note">Route displayed on map</div>
+                    <div id="turnContainer" style="display: none;">
+                        <div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">
+                            🧭 Turn-by-turn directions
+                        </div>
+                        <div id="turnList" class="turn-list"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>🌤️ Weather Forecast</h3>
+                <div id="weatherInfo">
+                    <div class="weather-display">
+                        <div class="weather-icon-large" id="weatherIcon">🌡️</div>
+                        <div class="weather-details">
+                            <div class="weather-temp" id="tempVal">—</div>
+                            <div class="weather-condition" id="weatherCondition">—</div>
+                        </div>
+                    </div>
+                    <div class="info-line" style="margin-top: 10px;">
+                        <span class="info-label">Rain probability</span>
+                        <span class="info-value" id="rainProb">—</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Date</span>
+                        <span class="info-value" id="weatherDate">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            📍 Powered by Leaflet · OpenStreetMap · GraphHopper · Open‑Meteo
+            <span style="margin-left: 1rem;" class="travel-mode-badge" id="modeBadge">🚗 Driving</span>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
